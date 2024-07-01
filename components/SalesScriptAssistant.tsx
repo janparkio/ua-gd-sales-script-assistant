@@ -70,6 +70,44 @@ const SalesScriptAssistant = () => {
   };
 
   const renderMessages = () => {
+    if (!step.series) {
+      const categoryScripts = Object.values(scriptData).filter(script => script.category === step.category);
+      return categoryScripts.map((script, index) => (
+        <div key={index} className="mb-4 p-3 bg-white rounded-lg shadow">
+          {index === 0 ? (
+            <div className="flex justify-between items-start">
+              <ReactMarkdown className="text-lg prose">{script.messages}</ReactMarkdown>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => copyToClipboard(script.messages)}
+                aria-label="Copiar al portapapeles"
+                className="icon-hover-animation"
+              >
+                <Clipboard className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <>
+              <div className="font-bold text-lg">{script.title}</div>
+              <div className="flex justify-between items-start">
+                <ReactMarkdown className="text-lg prose">{script.messages}</ReactMarkdown>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => copyToClipboard(script.messages)}
+                  aria-label="Copiar al portapapeles"
+                  className="icon-hover-animation"
+                >
+                  <Clipboard className="h-4 w-4" />
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      ));
+    }
+
     const messages = Array.isArray(step.messages) ? step.messages : [step.messages];
 
     return (
