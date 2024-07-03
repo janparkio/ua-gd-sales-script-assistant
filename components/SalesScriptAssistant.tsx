@@ -8,7 +8,6 @@ import ReactMarkdown from 'react-markdown';
 import { scriptData } from '../lib/scriptData';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-// import './styles.css'; // Make sure to import the CSS file
 
 const SalesScriptAssistant = () => {
   const [currentStep, setCurrentStep] = useState("INICIO");
@@ -26,7 +25,7 @@ const SalesScriptAssistant = () => {
   useEffect(() => {
     const filtered = Object.entries(scriptData).reduce((acc, [key, value]) => {
       if (value.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        value.messages.some(msg => msg.toLowerCase().includes(searchTerm.toLowerCase()))) {
+        (Array.isArray(value.messages) ? value.messages.some(msg => msg.toLowerCase().includes(searchTerm.toLowerCase())) : value.messages.toLowerCase().includes(searchTerm.toLowerCase()))) {
         acc[key] = value;
       }
       return acc;
@@ -76,11 +75,13 @@ const SalesScriptAssistant = () => {
         <div key={index} className="mb-4 p-3 bg-white rounded-lg shadow">
           {index === 0 ? (
             <div className="flex justify-between items-start">
-              <ReactMarkdown className="text-lg prose">{script.messages}</ReactMarkdown>
+              <ReactMarkdown className="text-lg prose">
+                {Array.isArray(script.messages) ? script.messages.join('\n\n') : String(script.messages)}
+              </ReactMarkdown>
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => copyToClipboard(script.messages)}
+                onClick={() => copyToClipboard(Array.isArray(script.messages) ? script.messages.join('\n\n') : String(script.messages))}
                 aria-label="Copiar al portapapeles"
                 className="icon-hover-animation"
               >
@@ -91,11 +92,13 @@ const SalesScriptAssistant = () => {
             <>
               <div className="font-bold text-lg">{script.title}</div>
               <div className="flex justify-between items-start">
-                <ReactMarkdown className="text-lg prose">{script.messages}</ReactMarkdown>
+                <ReactMarkdown className="text-lg prose">
+                  {Array.isArray(script.messages) ? script.messages.join('\n\n') : String(script.messages)}
+                </ReactMarkdown>
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => copyToClipboard(script.messages)}
+                  onClick={() => copyToClipboard(Array.isArray(script.messages) ? script.messages.join('\n\n') : String(script.messages))}
                   aria-label="Copiar al portapapeles"
                   className="icon-hover-animation"
                 >
@@ -116,11 +119,13 @@ const SalesScriptAssistant = () => {
           {messages.map((message, index) => (
             <div key={index} className="p-3 bg-gray-100 rounded-lg shadow">
               <div className="flex justify-between items-start">
-                <ReactMarkdown className="text-lg prose">{message}</ReactMarkdown>
+                <ReactMarkdown className="text-lg prose">
+                  {String(message)}
+                </ReactMarkdown>
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => copyToClipboard(message)}
+                  onClick={() => copyToClipboard(String(message))}
                   aria-label="Copiar al portapapeles"
                   className="icon-hover-animation"
                 >
@@ -142,21 +147,27 @@ const SalesScriptAssistant = () => {
             )}
           </div>
         </div>
-        {step.options && (
-          <div className="flex flex-col space-y-3 mt-4">
-            {step.options.map((option, index) => (
-              <Button
-                key={index}
-                onClick={() => setCurrentStep(option.next)}
-                variant="outline"
-              >
-                {option.text}
-              </Button>
-            ))}
-          </div>
-        )}
       </div>
     );
+  };
+
+  const renderOptions = () => {
+    if (step.options) {
+      return (
+        <div className="flex flex-col space-y-3 mt-4">
+          {step.options.map((option, index) => (
+            <Button
+              key={index}
+              onClick={() => setCurrentStep(option.next)}
+              variant="outline"
+            >
+              {option.text}
+            </Button>
+          ))}
+        </div>
+      );
+    }
+    return null;
   };
 
   const groupedScripts = Object.entries(filteredScripts).reduce((acc, [key, value]) => {
@@ -193,6 +204,7 @@ const SalesScriptAssistant = () => {
         </CardHeader>
         <CardContent>
           {renderMessages()}
+          {renderOptions()}
         </CardContent>
       </Card>
 
