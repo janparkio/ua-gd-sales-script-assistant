@@ -5,6 +5,7 @@ import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Clipboard } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { scriptData } from '../lib/scriptData';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -15,6 +16,9 @@ const SalesScriptAssistant = () => {
   const [filteredScripts, setFilteredScripts] = useState(scriptData);
   const [hasMounted, setHasMounted] = useState(false);
   const [seriesKeys, setSeriesKeys] = useState([]);
+
+  // New state to keep track of the current page in series
+  const [currentSeriesPage, setCurrentSeriesPage] = useState(0);
 
   useEffect(() => {
     setHasMounted(true);
@@ -70,6 +74,7 @@ const SalesScriptAssistant = () => {
 
   const renderMessages = () => {
     if (!step.series) {
+      // Non-series rendering logic remains the same
       const categoryScripts = Object.values(scriptData).filter(script => script.category === step.category);
       return categoryScripts.map((script, index) => (
         <div key={index} className="mb-4 p-3 bg-white rounded-lg shadow">
@@ -111,39 +116,105 @@ const SalesScriptAssistant = () => {
       ));
     }
 
-    const messages = Array.isArray(step.messages) ? step.messages : [step.messages];
+    // Get all series steps for the current category
+    const seriesSteps = Object.entries(scriptData)
+      .filter(([key, value]) => value.category === step.category && value.series)
+      .sort(([keyA], [keyB]) => keyA.localeCompare(keyB));
+
+    // Calculate the total number of pages
+    const totalPages = Math.ceil(seriesSteps.length / 3);
+
+    // Get the current subset of series steps to display
+    const currentSeriesSteps = seriesSteps.slice(currentSeriesPage * 3, (currentSeriesPage + 1) * 3);
 
     return (
-      <div className="mb-4 p-3 bg-white rounded-lg shadow">
-        <div className="flex flex-col space-y-3">
-          {messages.map((message, index) => (
-            <div key={index} className="p-3 bg-gray-100 rounded-lg shadow">
-              <div className="flex justify-between items-start">
-                <ReactMarkdown className="text-lg prose">
-                  {String(message)}
-                </ReactMarkdown>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => copyToClipboard(String(message))}
-                  aria-label="Copiar al portapapeles"
-                  className="icon-hover-animation"
-                >
-                  <Clipboard className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
+      <div className="mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {currentSeriesSteps.map(([key, script], index) => (
+            <Card key={key} className="bg-white shadow">
+              <CardHeader className="font-bold text-lg">
+                {script.title}
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {Array.isArray(script.messages) ? (
+                    script.messages.map((message, msgIndex) => (
+                      <div key={msgIndex} className="p-2 bg-gray-100 rounded">
+                        <ReactMarkdown
+                          className="text-sm prose max-w-none"
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            p: ({ node, ...props }) => <p className="mb-2" {...props} />,
+                            ul: ({ node, ...props }) => <ul className="list-disc pl-4 mb-2" {...props} />,
+                            ol: ({ node, ...props }) => <ol className="list-decimal pl-4 mb-2" {...props} />,
+                            li: ({ node, ...props }) => <li className="mb-1" {...props} />,
+                          }}
+                        >
+                          {message.replace(/^[-*]\s/gm, '- ')}
+                        </ReactMarkdown>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-2 bg-gray-100 rounded">
+                      <ReactMarkdown
+                        className="text-sm prose max-w-none"
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          p: ({ node, ...props }) => <p className="mb-2" {...props} />,
+                          ul: ({ node, ...props }) => <ul className="list-disc pl-4 mb-2" {...props} />,
+                          ol: ({ node, ...props }) => <ol className="list-decimal pl-4 mb-2" {...props} />,
+                          li: ({ node, ...props }) => <li className="mb-1" {...props} />,
+                        }}
+                      >
+                        {script.messages.replace(/^[-*]\s/gm, '- ')}
+                      </ReactMarkdown>
+                    </div>
+                  )}
+                </div>
+                <div className="mt-2 flex justify-between items-center">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => copyToClipboard(Array.isArray(script.messages) ? script.messages.join('\n\n') : String(script.messages))}
+                    aria-label="Copiar al portapapeles"
+                    className="icon-hover-animation"
+                  >
+                    <Clipboard className="h-4 w-4" />
+                  </Button>
+                </div>
+                {script.options && (
+                  <div className="mt-4 space-y-2">
+                    {script.options.map((option, optionIndex) => (
+                      <Button
+                        key={optionIndex}
+                        onClick={() => setCurrentStep(option.next)}
+                        variant="outline"
+                        className="w-full"
+                      >
+                        {option.text}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           ))}
         </div>
+
+        {/* Navigation buttons for series */}
         <div className="flex justify-between mt-4">
           <div className="flex-1">
-            {seriesKeys.indexOf(currentStep) > 0 && (
-              <Button onClick={handlePreviousInSeries} className="float-left">Atrás</Button>
+            {currentSeriesPage > 0 && (
+              <Button onClick={() => setCurrentSeriesPage(prev => prev - 1)} className="float-left">
+                Atrás
+              </Button>
             )}
           </div>
           <div className="flex-1 text-right">
-            {seriesKeys.indexOf(currentStep) < seriesKeys.length - 1 && (
-              <Button onClick={handleNextInSeries} className="float-right">Siguiente</Button>
+            {currentSeriesPage < totalPages - 1 && (
+              <Button onClick={() => setCurrentSeriesPage(prev => prev + 1)} className="float-right">
+                Siguiente
+              </Button>
             )}
           </div>
         </div>
@@ -183,7 +254,7 @@ const SalesScriptAssistant = () => {
   }
 
   return (
-    <div className="max-w-2xl mx-auto p-6 bg-gray-100 rounded-lg shadow-lg">
+    <div className="max-w-5xl mx-auto p-6 bg-gray-100 rounded-lg shadow-lg">
       <ToastContainer />
       <h1 className="text-3xl font-bold mb-6 text-center text-blue-600">Asistente de Scripts de Ventas</h1>
 
